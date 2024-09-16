@@ -86,7 +86,7 @@ function scanTextNodes(node) {
             }
 
             const computedStyle = element.computedStyleMap();
-            const elementHeight = computedStyle.get("height");
+            const elementHeight = computedStyle.getUnit("height");
             if (
                 elementHeight.unit != "percent" &&
                 (
@@ -113,11 +113,12 @@ function scanTextNodes(node) {
             const paragraph = node.parentElement;
             const computedStyle = paragraph.computedStyleMap();
             if (
-                computedStyle.get("display") == "flex" ||
-                computedStyle.get("border-bottom-left-radius").value > 0 ||
-                computedStyle.get("border-bottom-right-radius").value > 0 ||
-                computedStyle.get("border-top-left-radius").value > 0 ||
-                computedStyle.get("border-top-right-radius").value > 0
+                computedStyle.getUnit("display") == "flex" ||
+                computedStyle.getUnit("border-radius").value > 0 ||
+                computedStyle.getUnit("border-bottom-left-radius").value > 0 ||
+                computedStyle.getUnit("border-bottom-right-radius").value > 0 ||
+                computedStyle.getUnit("border-top-left-radius").value > 0 ||
+                computedStyle.getUnit("border-top-right-radius").value > 0
             ) {
                 return;
             }
@@ -357,4 +358,31 @@ if (typeof NodeList.prototype.forEach === "undefined") {
     };
 }
 
+/** 
+ * @param { string } property
+ * @return { CSSUnitValue | CSSStyleValue | undefined }
+ */
+StylePropertyMapReadOnly.prototype.getUnit = function (property) {
+    const style = this.get(property);
+
+    if (style instanceof CSSUnitValue) {
+        return style;
+    }
+    const styleString = style.toString();
+    const value = parseFloat(styleString);
+    let unit = styleString.replace(value, "").trim();
+    if (unit.includes(" ")) {
+        return style;
+    }
+    if (isNaN(value)) {
+        return style
+    }
+    if (unit === "") {
+        unit = "number";
+    }
+    if (unit === "%") {
+        unit = "percent";
+    }
+    return new CSSUnitValue(value, unit);
+};
 main();
