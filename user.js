@@ -86,7 +86,7 @@ function scanTextNodes(node) {
             }
 
             const computedStyle = element.computedStyleMap();
-            const elementHeight = computedStyle.getUnit("height");
+            const elementHeight = computedStyle.get("height");
             if (
                 elementHeight.unit != "percent" &&
                 (
@@ -113,12 +113,12 @@ function scanTextNodes(node) {
             const paragraph = node.parentElement;
             const computedStyle = paragraph.computedStyleMap();
             if (
-                computedStyle.getUnit("display") == "flex" ||
-                computedStyle.getUnit("border-radius").value > 0 ||
-                computedStyle.getUnit("border-bottom-left-radius").value > 0 ||
-                computedStyle.getUnit("border-bottom-right-radius").value > 0 ||
-                computedStyle.getUnit("border-top-left-radius").value > 0 ||
-                computedStyle.getUnit("border-top-right-radius").value > 0
+                computedStyle.get("display") == "flex" ||
+                computedStyle.get("border-radius").value > 0 ||
+                computedStyle.get("border-bottom-left-radius").value > 0 ||
+                computedStyle.get("border-bottom-right-radius").value > 0 ||
+                computedStyle.get("border-top-left-radius").value > 0 ||
+                computedStyle.get("border-top-right-radius").value > 0
             ) {
                 return;
             }
@@ -358,12 +358,9 @@ if (typeof NodeList.prototype.forEach === "undefined") {
     };
 }
 
-/** 
- * @param { string } property
- * @return { CSSUnitValue | CSSStyleValue | undefined }
- */
-StylePropertyMapReadOnly.prototype.getUnit = function (property) {
-    const style = this.get(property);
+const originalStylePropertyMapReadOnlyGet = StylePropertyMapReadOnly.prototype.get;
+StylePropertyMapReadOnly.prototype.get = function (property) {
+    const style = originalStylePropertyMapReadOnlyGet.call(this, property);
 
     if (style instanceof CSSUnitValue) {
         return style;
