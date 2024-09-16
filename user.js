@@ -46,6 +46,7 @@ function scanTextNodes(node) {
         CODE: true,
         BUTTON: true,
         A: true,
+        LINK: true,
     };
     const excludeRole = { table: true };
     const excludeAriaLabel = { chats: true };
@@ -85,8 +86,12 @@ function scanTextNodes(node) {
             }
 
             const computedStyle = element.computedStyleMap();
+            const elementHeight = computedStyle.get("height");
             if (
-                computedStyle.get("height") != "auto"
+                elementHeight.unit != "percent" &&
+                (
+                    elementHeight != "auto"
+                )
             ) {
                 // body or other container may have fixed height, shouldn't add to skipElements
                 return;
@@ -105,7 +110,7 @@ function scanTextNodes(node) {
             }
         }
         case Node.TEXT_NODE: {
-            let paragraph = node.parentElement;
+            const paragraph = node.parentElement;
             const computedStyle = paragraph.computedStyleMap();
             if (
                 computedStyle.get("display") == "flex" ||
@@ -116,34 +121,7 @@ function scanTextNodes(node) {
             ) {
                 return;
             }
-            let hasRuby = false;
-            while ((node = addRuby(node))) {
-                hasRuby = true;
-            }
-            if (hasRuby) {
-                paragraph.style.alignItems = "end";
-                const currentLineHeight = paragraph
-                    .computedStyleMap()
-                    .get("line-height");
-                if (currentLineHeight.unit == "number") {
-                    paragraph.style.lineHeight = `max(${currentLineHeight.value * 100}%, min(300%, 30pt))`;
-                } else {
-                    paragraph.style.lineHeight = "min(300%, 30pt)";
-                }
-                while (true) {
-                    if (paragraph == null) {
-                        break;
-                    }
-                    if (paragraph.style.webkitLineClamp != "") {
-                        // Fix Safari bug
-                        paragraph.style.webkitLineClamp = "unset";
-                    }
-                    if (paragraph.tagName === "DIV") {
-                        break;
-                    }
-                    paragraph = paragraph.parentElement;
-                }
-            }
+            while ((node = addRuby(node)));
         }
     }
 }
@@ -271,9 +249,37 @@ function bingIPAForPhrase(phrase) {
  */
 function updateRuby(phrase, ipa) {
     if (ipa !== "") {
+        /** @type { Set<Element> } */
+        let paragraphs = new Set();
         (queue[phrase] || []).forEach(function (node) {
             node.dataset.rt = ipa;
+            // <div><ruby><rt></></ruby></div>
+            paragraphs.add(node.parentElement.parentElement);
         });
+        for (let paragraph of paragraphs) {
+            paragraph.style.alignItems = "end";
+            const currentLineHeight = paragraph
+                .computedStyleMap()
+                .get("line-height");
+            if (currentLineHeight.unit == "number") {
+                paragraph.style.lineHeight = `max(${currentLineHeight.value * 100}%, min(300%, 30pt))`;
+            } else {
+                paragraph.style.lineHeight = "min(300%, 30pt)";
+            }
+            while (true) {
+                if (paragraph == null) {
+                    break;
+                }
+                if (paragraph.style.webkitLineClamp != "") {
+                    // Fix Safari bug
+                    paragraph.style.webkitLineClamp = "unset";
+                }
+                if (paragraph.tagName === "DIV") {
+                    break;
+                }
+                paragraph = paragraph.parentElement;
+            }
+        }
     }
     delete queue[phrase];
 }
