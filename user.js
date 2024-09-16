@@ -13,59 +13,62 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @connect     cn.bing.com
-// @version     2024.09.14
+// @version     2024.09.16
 // @downloadURL https://raw.githubusercontent.com/miku1958/Epipalaeolithic/master/user.js
 // @updateURL   https://raw.githubusercontent.com/miku1958/Epipalaeolithic/master/user.js
 // ==/UserScript==
 
 // define some shorthands
-var _ = document;
+/** @type { {[id: string]: Node[]} } */
 const queue = {}; // {"community": [rtNodeA, rtNodeB]}
-var newNodes = [_.body];
+
+/** @type { Node } */
+const newNodes = [document.body];
 
 /** @type { Element[] } */
-let skipElements = [];
+const skipElements = [];
 
 // Recursively traverse the given node and its descendants (Depth-first search)
 /** @param { Node } node */
 function scanTextNodes(node) {
     // The node could have been detached from the DOM tree
-    if (!node.parentNode || !_.body.contains(node)) {
+    if (!node.parentNode || !document.body.contains(node)) {
         return;
     }
 
     // Ignore text boxes and echoes
-    var excludeTags = {
-        ruby: true,
-        script: true,
-        select: true,
-        textarea: true,
-        style: true,
-        code: true,
-        button: true,
-        a: true,
+    const excludeTags = {
+        RUBY: true,
+        SCRIPT: true,
+        SELECT: true,
+        TEXTAREA: true,
+        STYLE: true,
+        CODE: true,
+        BUTTON: true,
+        A: true,
     };
-    var excludeRole = { table: true };
-    var excludeAriaLabel = { chats: true };
-    var excludeClass = [
+    const excludeRole = { table: true };
+    const excludeAriaLabel = { chats: true };
+    const excludeClass = [
         "ui-card__body", // Teams calendar card
         "code-container", // greasyfork.org code
         "diff-table", // github.com code diff
     ];
-    var excludeDataTrackActionScenario = { messageQuotedReplyDeeplink: true };
+    const excludeDataTrackActionScenario = { messageQuotedReplyDeeplink: true };
 
     // if node is subnode element of skipElements, return
-    for (let skipElement of skipElements) {
+    for (const skipElement of skipElements) {
         if (skipElement.contains(node)) {
             return;
         }
     }
     switch (node.nodeType) {
-        case Node.ELEMENT_NODE:
+        case Node.ELEMENT_NODE: {
+
             /** @type { Element } */
             const element = node;
             if (
-                element.tagName.toLowerCase() in excludeTags ||
+                element.tagName in excludeTags ||
                 element.isContentEditable ||
                 element.role?.toLowerCase() in excludeRole ||
                 element.ariaLabel?.toLowerCase() in excludeAriaLabel ||
@@ -81,15 +84,38 @@ function scanTextNodes(node) {
                 }
             }
 
-            if (element.computedStyleMap().get("height") != "auto") {
+            const computedStyle = element.computedStyleMap();
+            if (
+                computedStyle.get("height") != "auto"
+            ) {
+                // body or other container may have fixed height, shouldn't add to skipElements
                 return;
+            }
+
+            if (element instanceof HTMLElement) {
+                /** @type { HTMLElement } */
+                const htmlElement = element;
+                if (element.hidden) {
+                    return;
+                }
             }
 
             for (let i = element.childNodes.length - 1; i >= 0; i--) {
                 scanTextNodes(element.childNodes[i]);
             }
-        case Node.TEXT_NODE:
+        }
+        case Node.TEXT_NODE: {
             let paragraph = node.parentElement;
+            const computedStyle = paragraph.computedStyleMap();
+            if (
+                computedStyle.get("display") == "flex" ||
+                computedStyle.get("border-bottom-left-radius").value > 0 ||
+                computedStyle.get("border-bottom-right-radius").value > 0 ||
+                computedStyle.get("border-top-left-radius").value > 0 ||
+                computedStyle.get("border-top-right-radius").value > 0
+            ) {
+                return;
+            }
             let hasRuby = false;
             while ((node = addRuby(node))) {
                 hasRuby = true;
@@ -100,8 +126,7 @@ function scanTextNodes(node) {
                     .computedStyleMap()
                     .get("line-height");
                 if (currentLineHeight.unit == "number") {
-                    paragraph.style.lineHeight = `max(${currentLineHeight.value * 100
-                        }%, min(300%, 30pt))`;
+                    paragraph.style.lineHeight = `max(${currentLineHeight.value * 100}%, min(300%, 30pt))`;
                 } else {
                     paragraph.style.lineHeight = "min(300%, 30pt)";
                 }
@@ -119,6 +144,7 @@ function scanTextNodes(node) {
                     paragraph = paragraph.parentElement;
                 }
             }
+        }
     }
 }
 
@@ -129,26 +155,26 @@ function scanTextNodes(node) {
  * @return { Node | false }
  */
 function addRuby(node) {
-    var word = /[a-zA-Z]{2,}/,
-        match;
+    const word = /[a-zA-Z]{2,}/;
+    let match;
     if (!node.nodeValue || !(match = word.exec(node.nodeValue))) {
         return false;
     }
+    const trimLowerMatch = match[0].trim().toLowerCase();
+    const ruby = document.createElement("ruby");
+    ruby.appendChild(document.createTextNode(match[0]));
 
-    var ruby = _.createElement("ruby");
-    ruby.appendChild(_.createTextNode(match[0]));
-
-    var rt = _.createElement("rt");
+    const rt = document.createElement("rt");
     rt.classList.add("ipa-additional-rt");
     ruby.appendChild(rt);
 
     // Append the ruby title node to the pending-query queue
-    queue[match[0]] = queue[match[0]] || [];
-    queue[match[0]].push(rt);
+    queue[trimLowerMatch] = queue[trimLowerMatch] || [];
+    queue[trimLowerMatch].push(rt);
 
     // <span>[startカナmiddleテストend]</span> =>
     // <span>start<ruby>カナ<rt data-rt="Kana"></rt></ruby>[middleテストend]</span>
-    var after = node.splitText(match.index);
+    const after = node.splitText(match.index);
     node.parentNode.insertBefore(ruby, after);
     after.nodeValue = after.nodeValue.substring(match[0].length);
     return after;
@@ -156,12 +182,12 @@ function addRuby(node) {
 
 // Split word list into chunks to limit the length of API requests
 function translateTextNodes() {
-    var apiRequestCount = 0;
-    var phraseCount = 0;
+    let apiRequestCount = 0;
+    let phraseCount = 0;
 
-    for (var phrase in queue) {
+    for (const phrase in queue) {
         phraseCount++;
-        let cache = GM_getValue(phrase.toLowerCase(), null);
+        const cache = GM_getValue(phrase, null);
         if (cache !== null) {
             updateRuby(phrase, cache);
             continue;
@@ -206,7 +232,7 @@ function buildQueryString(params) {
  */
 function bingIPAForPhrase(phrase) {
     // https://cn.bing.com/api/v7/dictionarywords/search?q=community&appid=371E7B2AF0F9B84EC491D731DF90A55719C7D209&mkt=zh-cn
-    var api = "https://cn.bing.com/api/v7/dictionarywords/search",
+    const api = "https://cn.bing.com/api/v7/dictionarywords/search",
         params = {
             q: phrase,
             appid: "371E7B2AF0F9B84EC491D731DF90A55719C7D209",
@@ -227,7 +253,7 @@ function bingIPAForPhrase(phrase) {
             if (resp.value[0] != null && resp.value[0]?.pronunciation != null) {
                 pronunciation = resp.value[0].pronunciation.replace(/[()]/g, "");
             }
-            GM_setValue(phrase.toLowerCase(), pronunciation);
+            GM_setValue(phrase, pronunciation);
             updateRuby(phrase, pronunciation);
         },
         onerror: function (dom) {
@@ -266,8 +292,8 @@ function main() {
         "rt.ipa-additional-rt::before { content: attr(data-rt); font-size: clamp(10pt, 5vw, 70%); opacity: 0.6; }"
     );
 
-    var observer = new MutationObserver(mutationHandler);
-    observer.observe(_.body, { childList: true, subtree: true });
+    const observer = new MutationObserver(mutationHandler);
+    observer.observe(document.body, { childList: true, subtree: true });
 
     function rescanTextNodes() {
         // Deplete buffered mutations
@@ -302,12 +328,12 @@ if (
 
 if (typeof GM_addStyle === "undefined") {
     GM_addStyle = function (css) {
-        var head = _.getElementsByTagName("head")[0];
+        const head = document.getElementsByTagName("head")[0];
         if (!head) {
             return null;
         }
 
-        var style = _.createElement("style");
+        const style = document.createElement("style");
         style.setAttribute("type", "text/css");
         style.textContent = css;
         head.appendChild(style);
@@ -319,7 +345,7 @@ if (typeof GM_addStyle === "undefined") {
 if (typeof NodeList.prototype.forEach === "undefined") {
     NodeList.prototype.forEach = function (callback, thisArg) {
         thisArg = thisArg || window;
-        for (var i = 0; i < this.length; i++) {
+        for (let i = 0; i < this.length; i++) {
             callback.call(thisArg, this[i], i, this);
         }
     };
