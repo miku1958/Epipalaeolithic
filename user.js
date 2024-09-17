@@ -173,9 +173,6 @@ function updateRuby(phrase, ipa) {
             paragraphs.add(node.parentElement.parentElement);
         });
         for (let paragraph of paragraphs) {
-            if (paragraph.classList.contains("b_lineclamp2")) {
-                console.log("b_lineclamp2");
-            }
             paragraph.style.alignItems = "end";
 
             let computedStyle = paragraph.computedStyleMap();
