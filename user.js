@@ -196,7 +196,7 @@ function updateRuby(phrase, ipa) {
                     break;
                 }
                 paragraph = paragraph.parentElement;
-                computedStyle = paragraph.computedStyleMap();
+                computedStyle = paragraph?.computedStyleMap();
             }
         }
     }
