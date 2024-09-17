@@ -89,12 +89,9 @@ function scanTextNodes(node) {
             const computedStyle = element.computedStyleMap();
             const elementHeight = computedStyle.get("height");
             if (
-                elementHeight.unit != "percent" &&
-                (
-                    elementHeight != "auto"
-                )
+                elementHeight.unit != "percent" && elementHeight != "auto"
             ) {
-                // body or other container may have fixed height, shouldn't add to skipElements
+                skipElements.push(element);
                 return;
             }
 
@@ -158,6 +155,55 @@ function addRuby(node) {
     node.parentNode.insertBefore(ruby, after);
     after.nodeValue = after.nodeValue.substring(match[0].length);
     return after;
+}
+
+/**
+ * Update ruby and clear the pending-query queue
+ *
+ * @param { string } phrase
+ * @param { string } ipa
+ */
+function updateRuby(phrase, ipa) {
+    if (ipa !== "") {
+        /** @type { Set<Element> } */
+        let paragraphs = new Set();
+        (queue[phrase] || []).forEach(function (node) {
+            node.dataset.rt = ipa;
+            // <div><ruby><rt></></ruby></div>
+            paragraphs.add(node.parentElement.parentElement);
+        });
+        for (let paragraph of paragraphs) {
+            if (paragraph.classList.contains("b_lineclamp2")) {
+                console.log("b_lineclamp2");
+            }
+            paragraph.style.alignItems = "end";
+
+            let computedStyle = paragraph.computedStyleMap();
+
+            const currentLineHeight = computedStyle.get("line-height");
+            if (currentLineHeight.unit == "number") {
+                paragraph.style.lineHeight = `max(${currentLineHeight.value * 100}%, min(300%, 30pt))`;
+            } else {
+                paragraph.style.lineHeight = "min(300%, 30pt)";
+            }
+
+            while (true) {
+                if (paragraph == null) {
+                    break;
+                }
+                if (!["", "none"].includes(computedStyle.get("-webkit-line-clamp"))) {
+                    // Fix Safari bug
+                    paragraph.style.webkitLineClamp = "unset"; // we can only use unset instead of none
+                }
+                if (paragraph.tagName === "DIV") {
+                    break;
+                }
+                paragraph = paragraph.parentElement;
+                computedStyle = paragraph.computedStyleMap();
+            }
+        }
+    }
+    delete queue[phrase];
 }
 
 // Split word list into chunks to limit the length of API requests
@@ -240,50 +286,6 @@ function bingIPAForPhrase(phrase) {
             console.error("IPA Additional: request error", dom.statusText);
         },
     });
-}
-
-// Clear the pending-query queue
-/**
- *
- *
- * @param { string } phrase
- * @param { string } ipa
- */
-function updateRuby(phrase, ipa) {
-    if (ipa !== "") {
-        /** @type { Set<Element> } */
-        let paragraphs = new Set();
-        (queue[phrase] || []).forEach(function (node) {
-            node.dataset.rt = ipa;
-            // <div><ruby><rt></></ruby></div>
-            paragraphs.add(node.parentElement.parentElement);
-        });
-        for (let paragraph of paragraphs) {
-            paragraph.style.alignItems = "end";
-            const currentLineHeight = paragraph
-                .computedStyleMap()
-                .get("line-height");
-            if (currentLineHeight.unit == "number") {
-                paragraph.style.lineHeight = `max(${currentLineHeight.value * 100}%, min(300%, 30pt))`;
-            } else {
-                paragraph.style.lineHeight = "min(300%, 30pt)";
-            }
-            while (true) {
-                if (paragraph == null) {
-                    break;
-                }
-                if (paragraph.style.webkitLineClamp != "") {
-                    // Fix Safari bug
-                    paragraph.style.webkitLineClamp = "unset";
-                }
-                if (paragraph.tagName === "DIV") {
-                    break;
-                }
-                paragraph = paragraph.parentElement;
-            }
-        }
-    }
-    delete queue[phrase];
 }
 
 // Watch newly added DOM nodes, and save them for later use
