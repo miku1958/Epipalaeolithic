@@ -132,7 +132,7 @@ function scanTextNodes(node) {
  * @return { Node | false }
  */
 function addRuby(node) {
-    const word = /[a-zA-Z]{2,}/;
+    const word = /[a-zA-Z']{2,}/;
     let match;
     if (!node.nodeValue || !(match = word.exec(node.nodeValue))) {
         return false;
