@@ -165,12 +165,15 @@ function addRuby(node) {
  */
 function updateRuby(phrase, ipa) {
     if (ipa !== "") {
-        /** @type { Set<Element> } */
+        /** @type { Set<HTMLElement> } */
         let paragraphs = new Set();
         (queue[phrase] || []).forEach(function (node) {
             node.dataset.rt = ipa;
             // <div><ruby><rt></></ruby></div>
-            paragraphs.add(node.parentElement.parentElement);
+            const element = node.parentElement.parentElement;
+            if (element instanceof HTMLElement) {
+                paragraphs.add(node.parentElement.parentElement);
+            }
         });
         for (let paragraph of paragraphs) {
             paragraph.style.alignItems = "end";
