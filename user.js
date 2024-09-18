@@ -14,7 +14,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @connect     cn.bing.com
-// @version     2024.09.17
+// @version     2024.09.18
 // @downloadURL https://raw.githubusercontent.com/miku1958/Epipalaeolithic/master/user.js
 // @updateURL   https://raw.githubusercontent.com/miku1958/Epipalaeolithic/master/user.js
 // ==/UserScript==
