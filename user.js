@@ -7,6 +7,7 @@
 // @homepageURL https://github.com/miku1958/Epipalaeolithic
 // @icon        https://upload.wikimedia.org/wikipedia/commons/2/28/Ja-Ruby.png
 // @exclude     *.icloud.com/*
+// @exclude     *.llvm.org/*
 // @match       *://*/*
 // @grant       GM.xmlHttpRequest
 // @grant       GM_xmlhttpRequest
