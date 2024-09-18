@@ -362,7 +362,7 @@ const originalStylePropertyMapReadOnlyGet = StylePropertyMapReadOnly.prototype.g
 StylePropertyMapReadOnly.prototype.get = function (property) {
     const style = originalStylePropertyMapReadOnlyGet.call(this, property);
 
-    if (style instanceof CSSUnitValue) {
+    if (style == null || style instanceof CSSUnitValue) {
         return style;
     }
     const styleString = style.toString();
