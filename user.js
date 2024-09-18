@@ -89,6 +89,7 @@ function scanTextNodes(node) {
             const computedStyle = element.computedStyleMap();
             const elementHeight = computedStyle.get("height");
             if (
+                elementHeight != null &&
                 elementHeight.unit != "percent" && elementHeight != "auto"
             ) {
                 skipElements.push(element);
@@ -112,11 +113,11 @@ function scanTextNodes(node) {
             const computedStyle = paragraph.computedStyleMap();
             if (
                 computedStyle.get("display") == "flex" ||
-                computedStyle.get("border-radius").value > 0 ||
-                computedStyle.get("border-bottom-left-radius").value > 0 ||
-                computedStyle.get("border-bottom-right-radius").value > 0 ||
-                computedStyle.get("border-top-left-radius").value > 0 ||
-                computedStyle.get("border-top-right-radius").value > 0
+                (computedStyle.get("border-radius")?.value ?? 0) > 0 ||
+                (computedStyle.get("border-bottom-left-radius")?.value ?? 0) > 0 ||
+                (computedStyle.get("border-bottom-right-radius")?.value ?? 0) > 0 ||
+                (computedStyle.get("border-top-left-radius")?.value ?? 0) > 0 ||
+                (computedStyle.get("border-top-right-radius")?.value ?? 0) > 0
             ) {
                 return;
             }
@@ -181,7 +182,7 @@ function updateRuby(phrase, ipa) {
             let computedStyle = paragraph.computedStyleMap();
 
             const currentLineHeight = computedStyle.get("line-height");
-            if (currentLineHeight.unit == "number") {
+            if (currentLineHeight?.unit == "number") {
                 paragraph.style.lineHeight = `max(${currentLineHeight.value * 100}%, min(300%, 30pt))`;
             } else {
                 paragraph.style.lineHeight = "min(300%, 30pt)";
