@@ -70,6 +70,15 @@ function scanTextNodes(node) {
 
             /** @type { Element } */
             const element = node;
+
+            if (element instanceof HTMLElement) {
+                /** @type { HTMLElement } */
+                const htmlElement = element;
+                if (element.hidden) {
+                    return;
+                }
+            }
+
             if (
                 element.tagName in excludeTags ||
                 element.isContentEditable ||
@@ -80,6 +89,7 @@ function scanTextNodes(node) {
                 skipElements.push(element);
                 return;
             }
+            
             for (const class_ of excludeClass) {
                 if (element.classList.contains(class_)) {
                     skipElements.push(element);
@@ -96,13 +106,18 @@ function scanTextNodes(node) {
                 skipElements.push(element);
                 return;
             }
-
-            if (element instanceof HTMLElement) {
-                /** @type { HTMLElement } */
-                const htmlElement = element;
-                if (element.hidden) {
-                    return;
-                }
+            
+            const windowComputedStyle = window.getComputedStyle(element);
+            const minEdge = Math.min(parseFloat(windowComputedStyle.height), parseFloat(windowComputedStyle.width));
+            if (
+                parseFloat(windowComputedStyle.borderRadius) > minEdge ||
+                parseFloat(windowComputedStyle.borderBottomLeftRadius) > minEdge ||
+                parseFloat(windowComputedStyle.borderBottomRightRadius) > minEdge ||
+                parseFloat(windowComputedStyle.borderTopLeftRadius) > minEdge ||
+                parseFloat(windowComputedStyle.borderTopRightRadius) > minEdge
+            ) {
+                skipElements.push(element);
+                return;
             }
 
             for (let i = element.childNodes.length - 1; i >= 0; i--) {
@@ -113,12 +128,7 @@ function scanTextNodes(node) {
             const paragraph = node.parentElement;
             const computedStyle = paragraph.computedStyleMap();
             if (
-                computedStyle.get("display") == "flex" ||
-                (computedStyle.get("border-radius")?.value ?? 0) > 0 ||
-                (computedStyle.get("border-bottom-left-radius")?.value ?? 0) > 0 ||
-                (computedStyle.get("border-bottom-right-radius")?.value ?? 0) > 0 ||
-                (computedStyle.get("border-top-left-radius")?.value ?? 0) > 0 ||
-                (computedStyle.get("border-top-right-radius")?.value ?? 0) > 0
+                computedStyle.get("display") == "flex"
             ) {
                 return;
             }
