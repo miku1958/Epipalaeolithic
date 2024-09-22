@@ -15,7 +15,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @connect     cn.bing.com
-// @version     2024.09.18
+// @version     2024.09.22
 // @downloadURL https://raw.githubusercontent.com/miku1958/Epipalaeolithic/master/user.js
 // @updateURL   https://raw.githubusercontent.com/miku1958/Epipalaeolithic/master/user.js
 // ==/UserScript==
@@ -150,6 +150,10 @@ function addRuby(node) {
         return false;
     }
     const trimLowerMatch = match[0].trim().toLowerCase();
+
+    if (new Set(trimLowerMatch.split('')).size < 2) {
+        return;
+    }
     const ruby = document.createElement("ruby");
     ruby.appendChild(document.createTextNode(match[0]));
 
