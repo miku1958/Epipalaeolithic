@@ -15,7 +15,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @connect     cn.bing.com
-// @version     2024.09.22
+// @version     2024.09.23
 // @downloadURL https://raw.githubusercontent.com/miku1958/Epipalaeolithic/master/user.js
 // @updateURL   https://raw.githubusercontent.com/miku1958/Epipalaeolithic/master/user.js
 // ==/UserScript==
@@ -49,6 +49,7 @@ function scanTextNodes(node) {
         BUTTON: true,
         A: true,
         LINK: true,
+        TABLE: true,
     };
     const excludeRole = { table: true };
     const excludeAriaLabel = { chats: true };
