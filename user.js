@@ -24,9 +24,6 @@
 /** @type { {[id: string]: Node[]} } */
 const queue = {}; // {"community": [rtNodeA, rtNodeB]}
 
-/** @type { Node } */
-const newNodes = [document.body];
-
 /** @type { Element[] } */
 const skipElements = [];
 
@@ -307,43 +304,21 @@ function bingIPAForPhrase(phrase) {
     });
 }
 
-// Watch newly added DOM nodes, and save them for later use
-function mutationHandler(mutationList) {
-    mutationList.forEach(function (mutationRecord) {
-        mutationRecord.addedNodes.forEach(function (node) {
-            newNodes.push(node);
-        });
-    });
-}
-
 function main() {
     GM_addStyle(
         "rt.ipa-additional-rt::before { content: attr(data-rt); font-size: clamp(10pt, 5vw, 70%); opacity: 0.6; }"
     );
 
-    const observer = new MutationObserver(mutationHandler);
-    observer.observe(document.body, { childList: true, subtree: true });
+    const observer = new MutationObserver((records) => {
+        records.forEach(function (record) {
+            record.addedNodes.forEach(function (node) {
+                scanTextNodes(node);
+            });
+        });
 
-    function rescanTextNodes() {
-        // Deplete buffered mutations
-        mutationHandler(observer.takeRecords());
-        if (!newNodes.length) {
-            return;
-        }
-
-        console.debug(
-            "IPA Additional:",
-            newNodes.length,
-            "new nodes were added, frame",
-            window.location.href
-        );
-        newNodes.forEach(scanTextNodes);
-        newNodes.length = 0;
         translateTextNodes();
-    }
-
-    // Limit the frequency of API requests
-    setInterval(rescanTextNodes, 1000);
+    });
+    observer.observe(document.body, { childList: true, subtree: true });
 }
 
 // Polyfill for Greasemonkey 4
