@@ -55,8 +55,10 @@ function scanTextNodes(node) {
     const excludeAriaLabel = { chats: true };
     const excludeClass = [
         "ui-card__body", // Teams calendar card
+        "fui-ChatMessage__timestamp", // Teams chat message timestamp
         "code-container", // greasyfork.org code
         "diff-table", // github.com code diff
+        "ms-List-cell", // ADO list is dynamicly loaded
     ];
     const excludeDataTrackActionScenario = { messageQuotedReplyDeeplink: true };
 
