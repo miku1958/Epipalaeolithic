@@ -87,7 +87,7 @@ function scanTextNodes(node) {
                 element.isContentEditable ||
                 element.role?.toLowerCase() in excludeRole ||
                 element.ariaLabel?.toLowerCase() in excludeAriaLabel ||
-                element.dataset.trackActionScenario in excludeDataTrackActionScenario
+                element.dataset?.trackActionScenario in excludeDataTrackActionScenario
             ) {
                 skipElements.push(element);
                 return;
