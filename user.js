@@ -182,6 +182,7 @@ function addRuby(node) {
     ruby.appendChild(document.createTextNode(match[0]));
 
     const rt = document.createElement("rt");
+    skipElements.push(rt);
     rt.classList.add("ipa-additional-rt");
     ruby.appendChild(rt);
 
