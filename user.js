@@ -15,7 +15,7 @@
 // @grant       GM_getValue
 // @grant       GM_setValue
 // @connect     cn.bing.com
-// @version     2024.09.24
+// @version     2024.10.1
 // @downloadURL https://raw.githubusercontent.com/miku1958/Epipalaeolithic/master/user.js
 // @updateURL   https://raw.githubusercontent.com/miku1958/Epipalaeolithic/master/user.js
 // ==/UserScript==
@@ -27,37 +27,58 @@ const queue = {}; // {"community": [rtNodeA, rtNodeB]}
 /** @type { Element[] } */
 const skipElements = [];
 
+
+// Ignore text boxes and echoes
+const excludeTags = [
+    "RUBY",
+    "SCRIPT",
+    "SELECT",
+    "TEXTAREA",
+    "STYLE",
+    "CODE",
+    "BUTTON",
+    "A",
+    "LINK",
+    "TABLE",
+    "QUERY-BUILDER", // github serach box, https://github.com/search?q=bookmarkDataWithOptions+language%3A+Swift&type=code
+];
+const excludeRole = { table: true, heading: true };
+const excludeAriaLabel = { chats: true };
+const excludeClass = [
+    "ui-card__body", // Teams calendar card
+    "fui-ChatMessage__timestamp", // Teams chat message timestamp
+    "code-container", // greasyfork.org code
+    "diff-table", // github.com code diff
+    "notranslate", // github ``` code
+    "QueryBuilder-StyledInputContent", // github search bar
+    "ms-List-cell", // ADO list is dynamicly loaded
+    "repos-summary-code-diff", // ADO code diff
+];
+const excludeDataTrackActionScenario = { messageQuotedReplyDeeplink: true };
+
 // Recursively traverse the given node and its descendants (Depth-first search)
-/** @param { Node } node */
-function scanTextNodes(node) {
+/** 
+ * @param { Node } node 
+ * @param { Boolean } parentHasValified 
+*/
+function scanTextNodes(node, parentHasValified = false) {
     // The node could have been detached from the DOM tree
-    if (!node.parentNode || !document.body.contains(node)) {
+    if (!document.body.contains(node)) {
         return;
     }
 
-    // Ignore text boxes and echoes
-    const excludeTags = {
-        RUBY: true,
-        SCRIPT: true,
-        SELECT: true,
-        TEXTAREA: true,
-        STYLE: true,
-        CODE: true,
-        BUTTON: true,
-        A: true,
-        LINK: true,
-        TABLE: true,
-    };
-    const excludeRole = { table: true };
-    const excludeAriaLabel = { chats: true };
-    const excludeClass = [
-        "ui-card__body", // Teams calendar card
-        "fui-ChatMessage__timestamp", // Teams chat message timestamp
-        "code-container", // greasyfork.org code
-        "diff-table", // github.com code diff
-        "ms-List-cell", // ADO list is dynamicly loaded
-    ];
-    const excludeDataTrackActionScenario = { messageQuotedReplyDeeplink: true };
+    /** @type { Element } */
+    const isNode = node.nodeType === Node.TEXT_NODE;
+    let element;
+    if (node.nodeType === Node.ELEMENT_NODE) {
+        element = node;
+    }
+    if (node.nodeType === Node.TEXT_NODE) {
+        element = node.parentElement;
+    }
+    if (element == null) {
+        return;
+    }
 
     // if node is subnode element of skipElements, return
     for (const skipElement of skipElements) {
@@ -65,73 +86,76 @@ function scanTextNodes(node) {
             return;
         }
     }
+
+    if (!isNode || !parentHasValified) {
+        if (element instanceof HTMLElement) {
+            /** @type { HTMLElement } */
+            const htmlElement = element;
+            if (element.hidden) {
+                return;
+            }
+        }
+
+        if (
+            excludeTags.includes(element.tagName) ||
+            element.isContentEditable ||
+            element.role?.toLowerCase() in excludeRole ||
+            element.ariaLabel?.toLowerCase() in excludeAriaLabel ||
+            element.dataset?.trackActionScenario in excludeDataTrackActionScenario
+        ) {
+            skipElements.push(element);
+            return;
+        }
+
+        for (const class_ of excludeClass) {
+            if (element.classList.contains(class_)) {
+                skipElements.push(element);
+                return;
+            }
+        }
+
+        const computedStyle = element.computedStyleMap();
+        const elementHeight = computedStyle.get("height");
+        if (
+            elementHeight != null &&
+            (
+                elementHeight.unit != "percent" && elementHeight != "auto"
+                ||
+                elementHeight.unit == "px" && element.value === 0
+            )
+        ) {
+            skipElements.push(element);
+            return;
+        }
+
+        if (
+            computedStyle.get("display") == "flex"
+        ) {
+            skipElements.push(element);
+            return;
+        }
+
+        const windowComputedStyle = window.getComputedStyle(element);
+        const minEdge = Math.min(parseFloat(windowComputedStyle.height), parseFloat(windowComputedStyle.width));
+        if (
+            parseFloat(windowComputedStyle.borderRadius) > minEdge ||
+            parseFloat(windowComputedStyle.borderBottomLeftRadius) > minEdge ||
+            parseFloat(windowComputedStyle.borderBottomRightRadius) > minEdge ||
+            parseFloat(windowComputedStyle.borderTopLeftRadius) > minEdge ||
+            parseFloat(windowComputedStyle.borderTopRightRadius) > minEdge
+        ) {
+            skipElements.push(element);
+            return;
+        }
+    }
+
     switch (node.nodeType) {
         case Node.ELEMENT_NODE: {
-
-            /** @type { Element } */
-            const element = node;
-
-            if (element instanceof HTMLElement) {
-                /** @type { HTMLElement } */
-                const htmlElement = element;
-                if (element.hidden) {
-                    return;
-                }
-            }
-
-            if (
-                element.tagName in excludeTags ||
-                element.isContentEditable ||
-                element.role?.toLowerCase() in excludeRole ||
-                element.ariaLabel?.toLowerCase() in excludeAriaLabel ||
-                element.dataset?.trackActionScenario in excludeDataTrackActionScenario
-            ) {
-                skipElements.push(element);
-                return;
-            }
-            
-            for (const class_ of excludeClass) {
-                if (element.classList.contains(class_)) {
-                    skipElements.push(element);
-                    return;
-                }
-            }
-
-            const computedStyle = element.computedStyleMap();
-            const elementHeight = computedStyle.get("height");
-            if (
-                elementHeight != null &&
-                elementHeight.unit != "percent" && elementHeight != "auto"
-            ) {
-                skipElements.push(element);
-                return;
-            }
-            
-            const windowComputedStyle = window.getComputedStyle(element);
-            const minEdge = Math.min(parseFloat(windowComputedStyle.height), parseFloat(windowComputedStyle.width));
-            if (
-                parseFloat(windowComputedStyle.borderRadius) > minEdge ||
-                parseFloat(windowComputedStyle.borderBottomLeftRadius) > minEdge ||
-                parseFloat(windowComputedStyle.borderBottomRightRadius) > minEdge ||
-                parseFloat(windowComputedStyle.borderTopLeftRadius) > minEdge ||
-                parseFloat(windowComputedStyle.borderTopRightRadius) > minEdge
-            ) {
-                skipElements.push(element);
-                return;
-            }
-
             for (let i = element.childNodes.length - 1; i >= 0; i--) {
-                scanTextNodes(element.childNodes[i]);
+                scanTextNodes(element.childNodes[i], true);
             }
         }
         case Node.TEXT_NODE: {
-            const paragraph = node.parentElement;
-            const computedStyle = paragraph.computedStyleMap();
-            if (
-                computedStyle.get("display") == "flex"
-            ) {
-                return;
-            }
             while ((node = addRuby(node)));
         }
     }
@@ -197,10 +221,12 @@ function updateRuby(phrase, ipa) {
             let computedStyle = paragraph.computedStyleMap();
 
             const currentLineHeight = computedStyle.get("line-height");
-            if (currentLineHeight?.unit == "number") {
-                paragraph.style.lineHeight = `max(${currentLineHeight.value * 100}%, min(300%, 30pt))`;
-            } else {
-                paragraph.style.lineHeight = "min(300%, 30pt)";
+            if (currentLineHeight != null || currentLineHeight != "normal") {
+                if (currentLineHeight?.unit == "number") {
+                    paragraph.style.lineHeight = `max(${currentLineHeight.value * 100}%, min(300%, 30pt))`;
+                } else {
+                    paragraph.style.lineHeight = "min(300%, 30pt)";
+                }
             }
 
             while (true) {
@@ -291,10 +317,7 @@ function bingIPAForPhrase(phrase) {
                 console.error("IPA Additional: invalid response", dom.responseText);
                 return;
             }
-            let pronunciation = "";
-            if (resp.value[0] != null && resp.value[0]?.pronunciation != null) {
-                pronunciation = resp.value[0].pronunciation.replace(/[()]/g, "");
-            }
+            const pronunciation = resp?.value?.[0]?.pronunciation?.replace(/[()]/g, "") ?? "";
             GM_setValue(phrase, pronunciation);
             updateRuby(phrase, pronunciation);
         },
@@ -308,15 +331,33 @@ function main() {
     GM_addStyle(
         "rt.ipa-additional-rt::before { content: attr(data-rt); font-size: clamp(10pt, 5vw, 70%); opacity: 0.6; }"
     );
+    /** @type { Node } */
+    const newNodes = [document.body];
 
     const observer = new MutationObserver((records) => {
         records.forEach(function (record) {
             record.addedNodes.forEach(function (node) {
-                scanTextNodes(node);
+                newNodes.push(node);
             });
         });
 
-        translateTextNodes();
+        if (!newNodes.length) {
+            return;
+        }
+
+        debounce(() => {
+            console.debug(
+                "IPA Additional:",
+                newNodes.length,
+                "new nodes were added, frame",
+                window.location.href
+            );
+
+            newNodes.forEach(scanTextNodes);
+            newNodes.length = 0;
+
+            translateTextNodes();
+        }, 100)();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 }
@@ -379,4 +420,12 @@ StylePropertyMapReadOnly.prototype.get = function (property) {
     }
     return new CSSUnitValue(value, unit);
 };
+
+let timeout;
+function debounce(func, wait) {
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
 main();
