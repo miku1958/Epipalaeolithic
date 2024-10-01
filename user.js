@@ -199,16 +199,57 @@ function addRuby(node) {
 }
 
 /**
+ * convert phrase to original form
+ *
+ * @param { string } phrase
+ * @return { string | null }
+ */
+function convertPhrase(phrase) {
+    if (phrase.endsWith("es")) {
+        return phrase.slice(0, -2);
+    }
+    if (phrase.endsWith("s")) {
+        return phrase.slice(0, -1);
+    }
+    if (phrase.endsWith("ied")) {
+        return phrase.slice(0, -3) + "y";
+    }
+    if (phrase.endsWith("ed")) {
+        return phrase.slice(0, -2);
+    }
+    if (phrase.endsWith("ing")) {
+        return phrase.slice(0, -3);
+    }
+    return null;
+}
+
+/**
  * Update ruby and clear the pending-query queue
  *
  * @param { string } phrase
  * @param { string } ipa
  */
 function updateRuby(phrase, ipa) {
-    if (ipa !== "") {
+    if (queue[phrase] == null) {
+        return;
+    }
+    if (ipa === "") {
+        const originalPhrase = convertPhrase(phrase)?.trim().toLowerCase();
+        if (originalPhrase != null) {
+            if (queue[originalPhrase] != null) {
+                queue[originalPhrase].push(...queue[phrase]);
+            } else {
+                queue[originalPhrase] = queue[phrase];
+            }
+            queue[phrase] = null;
+            debounce(() => {
+                translateTextNodes();
+            });
+        }
+    } else {
         /** @type { Set<HTMLElement> } */
         let paragraphs = new Set();
-        (queue[phrase] || []).forEach(function (node) {
+        queue[phrase].forEach(function (node) {
             node.dataset.rt = ipa;
             // <div><ruby><rt></></ruby></div>
             const element = node.parentElement.parentElement;
@@ -245,8 +286,8 @@ function updateRuby(phrase, ipa) {
                 computedStyle = paragraph?.computedStyleMap();
             }
         }
+        delete queue[phrase];
     }
-    delete queue[phrase];
 }
 
 // Split word list into chunks to limit the length of API requests
@@ -422,11 +463,11 @@ StylePropertyMapReadOnly.prototype.get = function (property) {
     return new CSSUnitValue(value, unit);
 };
 
-let timeout;
-function debounce(func, wait) {
-    return function (...args) {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func.apply(this, args), wait);
+const debounce = (callback, wait) => {
+    let timeoutId = null;
+    return (...args) => {
+        window.clearTimeout(timeoutId);
+        timeoutId = window.setTimeout(() => callback(...args), wait);
     };
 }
 main();
