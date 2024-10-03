@@ -87,7 +87,7 @@ function scanTextNodes(node, parentHasValified = false) {
         }
     }
 
-    if (!isNode || !parentHasValified) {
+    if (isNode || !parentHasValified) {
         if (element instanceof HTMLElement) {
             /** @type { HTMLElement } */
             const htmlElement = element;
