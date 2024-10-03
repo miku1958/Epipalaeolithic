@@ -74,6 +74,9 @@ function scanTextNodes(node, parentHasValified = false) {
         element = node;
     }
     if (node.nodeType === Node.TEXT_NODE) {
+        if ((node.nodeValue?.trim().length ?? 0) < 2) {
+            return;
+        }
         element = node.parentElement;
     }
     if (element == null) {
