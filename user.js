@@ -85,12 +85,17 @@ function scanTextNodes(node, parentHasValified = false) {
 
     // if node is subnode element of skipElements, return
     for (const skipElement of skipElements) {
-        if (skipElement.contains(node)) {
+        if (skipElement === node || skipElement.contains(node)) {
             return;
         }
     }
 
-    if (isNode || !parentHasValified) {
+    if (excludeTags.includes(element.tagName)) {
+        skipElements.push(element);
+        return;
+    }
+
+    if (!parentHasValified) {
         if (element instanceof HTMLElement) {
             /** @type { HTMLElement } */
             const htmlElement = element;
@@ -100,7 +105,6 @@ function scanTextNodes(node, parentHasValified = false) {
         }
 
         if (
-            excludeTags.includes(element.tagName) ||
             element.isContentEditable ||
             element.role?.toLowerCase() in excludeRole ||
             element.ariaLabel?.toLowerCase() in excludeAriaLabel ||
