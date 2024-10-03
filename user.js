@@ -399,7 +399,7 @@ function main() {
             newNodes.length = 0;
 
             translateTextNodes();
-        }, 100)();
+        }, 50)();
     });
     observer.observe(document.body, { childList: true, subtree: true });
 }
