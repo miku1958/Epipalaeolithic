@@ -95,7 +95,7 @@ function scanTextNodes(node, parentHasValified = false) {
         return;
     }
 
-    if (!parentHasValified) {
+    if (!isNode || !parentHasValified) {
         if (element instanceof HTMLElement) {
             /** @type { HTMLElement } */
             const htmlElement = element;
@@ -136,7 +136,7 @@ function scanTextNodes(node, parentHasValified = false) {
         }
 
         if (
-            computedStyle.get("display") == "flex"
+            computedStyle.get("display") == "flex" && elementHeight != "auto"
         ) {
             skipElements.push(element);
             return;
