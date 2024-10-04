@@ -175,15 +175,22 @@ function scanTextNodes(node, parentHasValified = false) {
  * @return { Node | false }
  */
 function addRuby(node) {
+    let text = node.nodeValue ?? "";
     const word = /[a-zA-Z']{2,}/;
+    /** @type { RegExpExecArray } */
     let match;
-    if (!node.nodeValue || !(match = word.exec(node.nodeValue))) {
-        return false;
-    }
-    const trimLowerMatch = match[0].trim().toLowerCase();
+    let matchString = "";
+    let testSet = new Set();
 
-    if (new Set(trimLowerMatch.split('')).size < 2) {
-        return;
+    while (testSet.size < 2) {
+        if (!(match = word.exec(text))) {
+            return false;
+        }
+
+        text = text.substring(match.index + match[0].length);
+        matchString = match[0].trim().toLowerCase();
+
+        testSet = new Set(matchString.split(''));
     }
     const ruby = document.createElement("ruby");
     ruby.appendChild(document.createTextNode(match[0]));
@@ -194,14 +201,14 @@ function addRuby(node) {
     ruby.appendChild(rt);
 
     // Append the ruby title node to the pending-query queue
-    queue[trimLowerMatch] = queue[trimLowerMatch] || [];
-    queue[trimLowerMatch].push(rt);
+    queue[matchString] = queue[matchString] || [];
+    queue[matchString].push(rt);
 
     // <span>[startカナmiddleテストend]</span> =>
     // <span>start<ruby>カナ<rt data-rt="Kana"></rt></ruby>[middleテストend]</span>
-    const after = node.splitText(match.index);
+    const after = node.splitText(node.nodeValue.length - text.length - match[0].length);
     node.parentNode.insertBefore(ruby, after);
-    after.nodeValue = after.nodeValue.substring(match[0].length);
+    after.nodeValue = text;
     return after;
 }
 
