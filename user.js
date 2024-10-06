@@ -24,9 +24,8 @@
 /** @type { {[id: string]: Node[]} } */
 const queue = {}; // {"community": [rtNodeA, rtNodeB]}
 
-/** @type { Element[] } */
-const skipElements = [];
-
+/** @type { Set<Element> } */
+const skipElements = new Set();
 
 // Ignore text boxes and echoes
 const excludeTags = [
@@ -91,7 +90,7 @@ function scanTextNodes(node, parentHasValified = false) {
     }
 
     if (excludeTags.includes(element.tagName)) {
-        skipElements.push(element);
+        skipElements.add(element);
         return;
     }
 
@@ -110,13 +109,13 @@ function scanTextNodes(node, parentHasValified = false) {
             element.ariaLabel?.toLowerCase() in excludeAriaLabel ||
             element.dataset?.trackActionScenario in excludeDataTrackActionScenario
         ) {
-            skipElements.push(element);
+            skipElements.add(element);
             return;
         }
 
         for (const class_ of excludeClass) {
             if (element.classList.contains(class_)) {
-                skipElements.push(element);
+                skipElements.add(element);
                 return;
             }
         }
@@ -131,14 +130,14 @@ function scanTextNodes(node, parentHasValified = false) {
                 elementHeight.unit == "px" && element.value === 0
             )
         ) {
-            skipElements.push(element);
+            skipElements.add(element);
             return;
         }
 
         if (
             computedStyle.get("display") == "flex" && elementHeight != "auto"
         ) {
-            skipElements.push(element);
+            skipElements.add(element);
             return;
         }
 
@@ -151,7 +150,7 @@ function scanTextNodes(node, parentHasValified = false) {
             parseFloat(windowComputedStyle.borderTopLeftRadius) > minEdge ||
             parseFloat(windowComputedStyle.borderTopRightRadius) > minEdge
         ) {
-            skipElements.push(element);
+            skipElements.add(element);
             return;
         }
     }
@@ -196,7 +195,7 @@ function addRuby(node) {
     ruby.appendChild(document.createTextNode(match[0]));
 
     const rt = document.createElement("rt");
-    skipElements.push(rt);
+    skipElements.add(rt);
     rt.classList.add("ipa-additional-rt");
     ruby.appendChild(rt);
 
