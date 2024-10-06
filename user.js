@@ -98,11 +98,10 @@ function scanTextNodes(node, parentHasValified = false) {
         if (element instanceof HTMLElement) {
             /** @type { HTMLElement } */
             const htmlElement = element;
-            if (element.hidden) {
+            if (htmlElement.hidden) {
                 return;
             }
         }
-
         if (
             element.isContentEditable ||
             element.role?.toLowerCase() in excludeRole ||
