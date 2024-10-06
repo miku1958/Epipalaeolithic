@@ -120,6 +120,12 @@ function scanTextNodes(node, parentHasValified = false) {
         }
 
         const computedStyle = element.computedStyleMap();
+
+        if (computedStyle.get("cursor") == "text") {
+            skipElements.add(element);
+            return;
+        }
+
         const elementHeight = computedStyle.get("height");
         if (
             elementHeight != null &&
