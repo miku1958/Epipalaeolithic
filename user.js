@@ -39,6 +39,7 @@ const excludeTags = [
     "A",
     "LINK",
     "TABLE",
+    "PRE", // preview content
     "QUERY-BUILDER", // github serach box, https://github.com/search?q=bookmarkDataWithOptions+language%3A+Swift&type=code
 ];
 const excludeRole = { table: true, heading: true };
