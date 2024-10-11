@@ -141,7 +141,7 @@ function scanTextNodes(node, parentHasValified = false) {
         }
 
         if (
-            computedStyle.get("display") == "flex" && elementHeight != "auto"
+            computedStyle.get("display") == "flex" && elementHeight != "auto" && elementHeight != "100%"
         ) {
             skipElements.add(element);
             return;
