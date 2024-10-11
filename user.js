@@ -170,9 +170,11 @@ function scanTextNodes(node, parentHasValified = false) {
             for (let i = element.childNodes.length - 1; i >= 0; i--) {
                 scanTextNodes(element.childNodes[i], true);
             }
+            break;
         }
         case Node.TEXT_NODE: {
             while ((node = addRuby(node)));
+            break;
         }
     }
 }
