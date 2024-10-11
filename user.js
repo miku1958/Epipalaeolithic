@@ -187,7 +187,7 @@ function scanTextNodes(node, parentHasValified = false) {
  */
 function addRuby(node) {
     let text = node.nodeValue ?? "";
-    const word = /[a-zA-Z']{2,}/;
+    const word = /[a-zA-ZÀ-ÿZ\u0100-\u024F']{2,}/;
     /** @type { RegExpExecArray } */
     let match;
     let matchString = "";
