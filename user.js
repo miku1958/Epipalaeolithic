@@ -232,22 +232,27 @@ function addRuby(node) {
  * @return { string | null }
  */
 function convertPhrase(phrase) {
+    /** @type { string | null } */
+    let newPhrase = null;
     if (phrase.endsWith("es")) {
-        return phrase.slice(0, -2);
+        newPhrase = phrase.slice(0, -2);
     }
     if (phrase.endsWith("s")) {
-        return phrase.slice(0, -1);
+        newPhrase = phrase.slice(0, -1);
     }
     if (phrase.endsWith("ied")) {
-        return phrase.slice(0, -3) + "y";
+        newPhrase = phrase.slice(0, -3) + "y";
     }
     if (phrase.endsWith("ed")) {
-        return phrase.slice(0, -2);
+        newPhrase = phrase.slice(0, -2);
     }
     if (phrase.endsWith("ing")) {
-        return phrase.slice(0, -3);
+        newPhrase = phrase.slice(0, -3);
     }
-    return null;
+    if (newPhrase != null && new Set(newPhrase.split("")).size < 2) {
+        return null;
+    }
+    return newPhrase;
 }
 
 /**
