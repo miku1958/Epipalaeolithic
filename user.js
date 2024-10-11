@@ -57,18 +57,19 @@ const excludeClass = [
 const excludeDataTrackActionScenario = { messageQuotedReplyDeeplink: true };
 
 // Recursively traverse the given node and its descendants (Depth-first search)
-/** 
- * @param { Node } node 
- * @param { Boolean } parentHasValified 
-*/
+/**
+ * @param { Node } node
+ * @param { Boolean } parentHasValified
+ */
 function scanTextNodes(node, parentHasValified = false) {
     // The node could have been detached from the DOM tree
     if (!document.body.contains(node)) {
         return;
     }
 
-    /** @type { Element } */
     const isNode = node.nodeType === Node.TEXT_NODE;
+
+    /** @type { Element } */
     let element;
     if (node.nodeType === Node.ELEMENT_NODE) {
         element = node;
@@ -131,24 +132,27 @@ function scanTextNodes(node, parentHasValified = false) {
         if (
             elementHeight != null &&
             (
-                elementHeight.unit != "percent" && elementHeight != "auto"
-                ||
-                elementHeight.unit == "px" && element.value === 0
-            )
+                (elementHeight.unit != "percent" && elementHeight != "auto") ||
+                (elementHeight.unit == "px" && element.value === 0))
         ) {
             skipElements.add(element);
             return;
         }
 
         if (
-            computedStyle.get("display") == "flex" && elementHeight != "auto" && elementHeight != "100%"
+            computedStyle.get("display") == "flex" &&
+            elementHeight != "auto" &&
+            elementHeight != "100%"
         ) {
             skipElements.add(element);
             return;
         }
 
         const windowComputedStyle = window.getComputedStyle(element);
-        const minEdge = Math.min(parseFloat(windowComputedStyle.height), parseFloat(windowComputedStyle.width));
+        const minEdge = Math.min(
+            parseFloat(windowComputedStyle.height),
+            parseFloat(windowComputedStyle.width)
+        );
         if (
             parseFloat(windowComputedStyle.borderRadius) > minEdge ||
             parseFloat(windowComputedStyle.borderBottomLeftRadius) > minEdge ||
@@ -195,7 +199,7 @@ function addRuby(node) {
         text = text.substring(match.index + match[0].length);
         matchString = match[0].trim().toLowerCase();
 
-        testSet = new Set(matchString.split(''));
+        testSet = new Set(matchString.split(""));
     }
     const ruby = document.createElement("ruby");
     ruby.appendChild(document.createTextNode(match[0]));
@@ -211,7 +215,9 @@ function addRuby(node) {
 
     // <span>[startカナmiddleテストend]</span> =>
     // <span>start<ruby>カナ<rt data-rt="Kana"></rt></ruby>[middleテストend]</span>
-    const after = node.splitText(node.nodeValue.length - text.length - match[0].length);
+    const after = node.splitText(
+        node.nodeValue.length - text.length - match[0].length
+    );
     node.parentNode.insertBefore(ruby, after);
     after.nodeValue = text;
     return after;
@@ -471,7 +477,7 @@ StylePropertyMapReadOnly.prototype.get = function (property) {
         return style;
     }
     if (isNaN(value)) {
-        return style
+        return style;
     }
     if (unit === "") {
         unit = "number";
@@ -488,5 +494,5 @@ const debounce = (callback, wait) => {
         window.clearTimeout(timeoutId);
         timeoutId = window.setTimeout(() => callback(...args), wait);
     };
-}
+};
 main();
