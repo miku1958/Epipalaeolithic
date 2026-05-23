@@ -28,7 +28,7 @@ const USER_JS_PATH = path.join(__dirname, "..", "user.js");
 
 const POST_XHR_DRAIN_MS = 100;
 
-async function measureSample(slug, { headless = true } = {}) {
+async function measureSample(slug, { headless = true, warmCache = null, dumpStorage = false } = {}) {
     const samplePath = path.join(SAMPLES_DIR, `${slug}.html`);
     await fsp.access(samplePath);
     const fileUrl = pathToFileURL(samplePath).href;
@@ -44,6 +44,20 @@ async function measureSample(slug, { headless = true } = {}) {
         await page.navigate(fileUrl, { timeoutMs: 60_000 });
 
         await page.evaluate(gmShimCode);
+
+        if (warmCache && typeof warmCache === "object") {
+            // 在 inject user.js 前预填 __perfStorage:user.js 内的 GM_getValue 将命中缓存,
+            // 同步 updateRuby 路径生效,反映"用户重访页面"的真实场景。
+            const entries = Object.entries(warmCache);
+            await page.evaluate(`
+                (function () {
+                    var entries = ${JSON.stringify(entries)};
+                    for (var i = 0; i < entries.length; i++) {
+                        window.__perfStorage.set(entries[i][0], entries[i][1]);
+                    }
+                })()
+            `);
+        }
 
         const preMetrics = await page.getMetrics();
 
@@ -78,10 +92,16 @@ async function measureSample(slug, { headless = true } = {}) {
 
         const post = await page.evaluate(`
             (function () {
+                var dump = null;
+                if (${JSON.stringify(Boolean(dumpStorage))}) {
+                    dump = {};
+                    window.__perfStorage.forEach(function (value, key) { dump[key] = value; });
+                }
                 return {
                     rubyCount: document.querySelectorAll("ruby > rt.ipa-additional-rt").length,
                     rubyFilledCount: document.querySelectorAll("ruby > rt.ipa-additional-rt[data-rt]").length,
                     stats: window.__perfStats,
+                    dumpedStorage: dump,
                 };
             })()
         `);
@@ -93,6 +113,7 @@ async function measureSample(slug, { headless = true } = {}) {
 
         return {
             slug,
+            mode: warmCache ? "warm" : "cold",
             scanMs: measurement.scanMs,
             translateSyncMs: measurement.translateSyncMs,
             firstBatchMs: measurement.scanMs + measurement.translateSyncMs,
@@ -107,6 +128,7 @@ async function measureSample(slug, { headless = true } = {}) {
             jsHeapAfterBytes: postMetrics.JSHeapUsedSize,
             nodesBefore: preMetrics.Nodes,
             nodesAfter: postMetrics.Nodes,
+            dumpedStorage: post.dumpedStorage,
         };
     } finally {
         await page.close();

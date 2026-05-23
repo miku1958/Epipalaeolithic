@@ -27,3 +27,15 @@
 `perf/captureSample.js` 用 `launchChrome` + `cdpClient`:navigate(timeoutMs=60s)+ `waitForNetworkIdle(idleMs=500, timeoutMs=15s)` + `evaluate("document.querySelectorAll('script').forEach(s=>s.remove()); ... outerHTML")` 抓渲染后的 DOM,预先剥掉所有 `<script>` 让本地副本加载时不再执行原页面 JS 污染 user.js 的测量。写盘到 `perf/samples/<slug>.html`(.gitignore),`perf/samples.index.json`(入 git)记录 url / capturedAt / sizeBytes / sha256。
 
 抓了两个 Project Gutenberg 公版英文样本作为初版基线:`pride-and-prejudice`(PG #1342,785 KiB / 14k 行,中等规模)、`war-and-peace`(PG #2600,3.6 MiB / 77k 行,压力样本)。两本都是纯英文 + 几乎无 JS 动态加载,符合"文字密集 / 首屏静态文字多 / 避免动态加载干扰首次扫描"标准。`git check-ignore` 确认 HTML 被忽略而索引文件入 git。
+
+### P0 阶段 1:Bing 请求处理决策 + warm/cold 双模式
+
+技术评估排除两个候选方案:CDP `Fetch.fulfillRequest` 拦截不到 `GM_xmlhttpRequest`(Tampermonkey API 不走浏览器 HTTP 栈);真请求引入网络抖动、可能触发 Bing 限流,且测的是 user.js 内部 JS 工作量,网络层污染基线。
+
+落定方案:**gmShim stub mock + 可选 warm cache preload**。`measureSample(slug, { warmCache, dumpStorage })` 接口扩展:`warmCache` 是 phrase→ipa map,在 inject user.js 前预填 `window.__perfStorage`,模拟"用户重访页面"全缓存命中场景;`dumpStorage` 让一次 cold run 把跑出来的 phrase 集合提出来,直接喂给后续 warm run。返回值带 `mode: "cold" | "warm"` 和 `dumpedStorage`。
+
+`perf/probe-bing-strategy.js` 跑 P&P 1 seed + 5 cold + 5 warm 验证波动:
+- cold: scanMs median 16389 / CV 8.3%, translateSyncMs ~6ms, gmXhrCalls=6722 / CV=0%
+- warm: scanMs median 15708 / CV 7.1%, **translateSyncMs ~2097ms / CV 1.9%**, gmXhrCalls=0 / CV=0%
+
+关键发现:warm 模式的 translateSyncMs 比 cold 高 ~350x,因 user.js 在缓存命中时同步走 updateRuby 全套(`rt.dataset.rt` + 祖先 div `align-items:end` / `line-height` 注入 + `-webkit-line-clamp` 清除循环),这部分成本在 cold mode 被 mock xhr 的 setTimeout 异步隐藏 — 这条信号原本看不到。`addRubyCount` / `gmXhrCalls` 完全 deterministic(CV=0)适合作为正确性断言。scanMs CV 7-8% 可接受,后续基线统计应用中位数 + IQR 而非均值。
