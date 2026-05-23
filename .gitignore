@@ -1,0 +1,4 @@
+perf/chrome-profiles/
+perf/samples/
+perf/.tmp/
+node_modules/
