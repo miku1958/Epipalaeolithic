@@ -14,7 +14,6 @@
 
 ### 阶段 1:建立性能测试基础设施
 
-- [ ] 写最小 CDP 客户端(直接 ws + JSON-RPC,不引 puppeteer / playwright 重型依赖):至少能 `Page.navigate` + 等 `Page.loadEventFired` / `networkIdle` 等"渲染稳定"信号 + `Runtime.evaluate` 注入 user.js + 读 `performance.now()` + `Performance.getMetrics` 拿堆内存
 - [ ] 选定 1–2 个具体在线小说页(挑文字密集、首屏静态文字多、避免太多动态加载干扰首次扫描指标),把当次 HTML 快照下载到 `perf/samples/`;源 URL + 抓取时间戳记到 `perf/samples.index.json`(入 git,作为"基线对应哪份样本"的索引;真正的 HTML 不入 git)
 - [ ] 定义指标集合(初版):harness 注入 user.js 起到首次 `scanTextNodes` 返回的耗时、首批 mutation 处理耗时、`addRuby` 调用次数、Bing 请求次数 + `GM_getValue` 缓存命中率、JS 堆内存峰值
 - [ ] 决定如何处理 Bing 请求(真请求 + 预热缓存 / CDP `Fetch.fulfillRequest` mock 一个本地响应),让指标可复现 — 看哪种方案在波动测试中更稳
