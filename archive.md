@@ -1,5 +1,20 @@
 # Archive
 
+## 2026-05-24
+
+### P0 阶段 1:基线统计 + perf/baseline.json(阶段 1 收官)
+
+`perf/runBaseline.js` 跑两份样本的基线:P&P 1 seed + 5 cold + 5 warm,W&P 1 cold(W&P 一次 ~4–8 分钟,不适合多跑,作压力上限单点参考)。`statsOf()` 算 min / q1 / median / q3 / max / iqr / mean / stddev / cv。runner 加了 per-sample retry(N=2)和增量写盘(每完成一个 sample 立刻 merge 到 baseline.json),防 W&P 偶发 `CDP ws closed before response`(首跑碰到一次,单独重试成功 → 判定 flaky 而非 deterministic)拖垮整体。
+
+落盘 `perf/baseline.json`(入 git,20 KiB):
+- P&P cold (n=5): scanMs median=22958 / CV=5.1%, firstBatchMs CV=5.1%, addRubyCount 122943 / CV=0%, gmXhrCalls 6722 / CV=0%
+- P&P warm (n=5): scanMs median=22574 / CV=4.5%, **firstBatchMs CV=2.7%**, translateSyncMs median=3033 / CV=17.2%(updateRuby 同步路径成本被显式量化), cacheHitRate 100%
+- W&P cold (n=1): scanMs=452240(7.5 分钟), addRubyCount=553569,作压力上限参考
+
+scanMs / firstBatchMs CV < 6% 对优化对比可用。**关键方法论**:跨 run 绝对值受 macOS 负载 / 温度 / 电源模式影响很大(同代码两次跑差 ~2x),所以**优化对比必须在同一次 baseline run 里把"优化前 vs 优化后"配对跑,不要跨日子比绝对值**;CV 只在同 run 内的多次重复有意义。
+
+至此阶段 1 收官:Chrome 启动脚本 + 最小 CDP 客户端 + 样本抓取 + 指标定义 + 采集器骨架 + Bing 请求处理(stub mock + warm/cold 双模式)+ 基线统计 全部就位。后续阶段 2/3 在同一份 harness 上展开。
+
 ## 2026-05-23
 
 ### P0 阶段 1:Chrome 启动脚本

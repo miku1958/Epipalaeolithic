@@ -12,10 +12,6 @@
 - **样本类型**:大型在线小说页(单页文字量大、DOM 深,适合压英文 IPA 标注的 hot path)。
 - **不在 user.js 内保留 perf 埋点**;测量从外部进行(harness 在注入 user.js 前后打 `performance.now()`、CDP `Performance.getMetrics` 等)。需要量函数内分块耗时时仅在测试期临时改 user.js,跑完恢复,不 commit。
 
-### 阶段 1:建立性能测试基础设施
-
-- [ ] 跑基线 N 次取统计(中位数 + IQR),确认波动可接受,基线落到 `perf/baseline.json`
-
 ### 阶段 2:已知热点的覆盖测试
 
 阶段 1 跑通后展开。当前怀疑的热点(等基线数据印证后再敲定具体测项,不预先承诺):
