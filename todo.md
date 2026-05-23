@@ -4,21 +4,26 @@
 
 目标:为 user.js 建立可复现的性能测试,基于真实测量数据优化首次扫描耗时、mutation 批处理耗时、IPA 标注端到端延迟与内存占用,不引入标注质量回归。
 
-### 待拍板(动手前需要用户确认)
+### 已确认的方向
 
-- [ ] 测试 harness 选型:Playwright headless / Puppeteer / 直接 Tampermonkey + 真实浏览器手测?影响 CI 可行性、样本可复现性、仓库依赖体积。
-- [ ] 测试样本来源:本地保存的 HTML 快照 / 在线真实 URL 抓取 / 手写 fixture?样本是否提交进仓库、还是只本地 + `.gitignore`?
-- [ ] 性能基线数据存放:`perf/baseline.json` 入 git 作为对比锚点 / 仅本机不入 git / 其他位置?
-- [ ] 是否允许在 user.js 内长期保留**可关闭的** perf 埋点(默认关、靠 `GM_setValue` 开关打开):优点是自测随时能开,缺点是有少量未执行分支代码长期留在生产脚本里。
+- **测试 harness**:真实 Chrome 加载样本页面,**等页面加载完成后**再注入 user.js 实测;不走 Playwright / Puppeteer 抽象层。
+- **样本类型**:大型在线小说页(单页文字量大、DOM 深,适合压英文 IPA 标注的 hot path)。
+- **基线数据**:入 git 作为后续优化的对比锚点。
+- **不在 user.js 内保留 perf 埋点**;测量从外部进行(harness 在注入 user.js 前后打 `performance.now()`、DevTools Performance Tab 录制等)。需要量函数内分块耗时时,仅在测试期临时改 user.js,跑完恢复,不 commit。
+
+### 待拍板(动手前还需要用户确认)
+
+- [ ] **样本 HTML 快照是否入 git**:在线小说 URL 内容会随时间漂移,仅存 URL → 不可复现。倾向把某次完整 HTML 快照存到 `perf/samples/` 入 git;但小说全文 + 外链资源可能让仓库膨胀。可接受的折中:存只含 `<body>` HTML + 必要内联 CSS 的"准静态"快照,丢弃图片 / 字体外链。是否同意?
+- [ ] **harness 是 agent 自动控制 Chrome 还是 user 手动跑**:前者用 chrome-cdp 让 agent 自己加载页面 / 等渲染稳定 / 注入脚本 / 收 metric,自动化高但每次都需要你授权 chrome-cdp;后者你手动跑测把数字回灌给我,无依赖但每轮要人工。
 
 ### 阶段 1:建立性能测试基础设施
 
-(待上面 4 条决策落定后展开)
+(待上面 2 条决策落定后展开)
 
-- [ ] 按决策搭 `perf/` 目录骨架:harness、样本、runner、报告输出位置
-- [ ] 定义初版指标集合:首次 `scanTextNodes` 总耗时、每批 mutation 平均处理耗时、`addRuby` 调用次数、Bing 请求数 + `GM_getValue` 缓存命中率、堆内存峰值
-- [ ] 准备至少 3 个代表性样本:纯英文文档站、GitHub PR 页、SPA(Teams chat 或 Bilibili 视频页任选)
-- [ ] 跑基线,确认同一样本多次跑数据波动在可接受阈值内,把基线数据落到选定位置
+- [ ] 按决策搭 `perf/` 目录骨架:样本目录、runner、基线 JSON 写入路径
+- [ ] 定义初版指标集合:user.js 注入到首次 `scanTextNodes` 返回的耗时、首批 mutation 处理总耗时、`addRuby` 调用次数、Bing 请求数 + `GM_getValue` 缓存命中率、堆内存峰值
+- [ ] 选定 1–2 个具体在线小说页作为样本(挑文字密集、DOM 结构典型的,避免太多动态加载导致 mutation 风暴干扰首次扫描指标)
+- [ ] 跑基线,确认同一样本多次跑数据波动在可接受阈值内,基线落到 `perf/baseline.json`(或等价位置)
 
 ### 阶段 2:已知热点的覆盖测试
 
