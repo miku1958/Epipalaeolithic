@@ -1,0 +1,14 @@
+{
+  "pride-and-prejudice": {
+    "url": "https://www.gutenberg.org/files/1342/1342-h/1342-h.htm",
+    "capturedAt": "2026-05-23T09:28:42.061Z",
+    "sizeBytes": 804330,
+    "sha256": "3cd7c0c0c02b0422f6b48390dc9b117c0fbf01cf910a755f990877385716cc70"
+  },
+  "war-and-peace": {
+    "url": "https://www.gutenberg.org/files/2600/2600-h/2600-h.htm",
+    "capturedAt": "2026-05-23T09:28:55.313Z",
+    "sizeBytes": 3850819,
+    "sha256": "d5b87fa2a2e7a6c46ee3a959af3b6984528ce2cc1a7c820419f0c4f97845a728"
+  }
+}
