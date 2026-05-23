@@ -6,24 +6,20 @@
 
 ### 已确认的方向
 
-- **测试 harness**:真实 Chrome 加载样本页面,**等页面加载完成后**再注入 user.js 实测;不走 Playwright / Puppeteer 抽象层。
+- **测试 harness**:agent 自启 Chrome — 临时 `--user-data-dir`、`--remote-debugging-port` 开 CDP,加上一组允许自动化操作的命令行标志(`--no-first-run` / `--no-default-browser-check` / 关闭各种首启 banner 等,具体组合 agent 调研并落到启动脚本里),通过 CDP 加载样本、等渲染稳定、注入 user.js、收 metric。**用户已对本项目一次性授权 chrome-cdp 类操作**,后续每轮不需重复确认。
+- **样本 HTML**:本地存放,**不入 git**;落在 workspace 内 `perf/samples/`,该目录加进 `.gitignore`。
+- **基线数据**:JSON 入 git,作为后续优化的对比锚点。
 - **样本类型**:大型在线小说页(单页文字量大、DOM 深,适合压英文 IPA 标注的 hot path)。
-- **基线数据**:入 git 作为后续优化的对比锚点。
-- **不在 user.js 内保留 perf 埋点**;测量从外部进行(harness 在注入 user.js 前后打 `performance.now()`、DevTools Performance Tab 录制等)。需要量函数内分块耗时时,仅在测试期临时改 user.js,跑完恢复,不 commit。
-
-### 待拍板(动手前还需要用户确认)
-
-- [ ] **样本 HTML 快照是否入 git**:在线小说 URL 内容会随时间漂移,仅存 URL → 不可复现。倾向把某次完整 HTML 快照存到 `perf/samples/` 入 git;但小说全文 + 外链资源可能让仓库膨胀。可接受的折中:存只含 `<body>` HTML + 必要内联 CSS 的"准静态"快照,丢弃图片 / 字体外链。是否同意?
-- [ ] **harness 是 agent 自动控制 Chrome 还是 user 手动跑**:前者用 chrome-cdp 让 agent 自己加载页面 / 等渲染稳定 / 注入脚本 / 收 metric,自动化高但每次都需要你授权 chrome-cdp;后者你手动跑测把数字回灌给我,无依赖但每轮要人工。
+- **不在 user.js 内保留 perf 埋点**;测量从外部进行(harness 在注入 user.js 前后打 `performance.now()`、CDP `Performance.getMetrics` 等)。需要量函数内分块耗时时仅在测试期临时改 user.js,跑完恢复,不 commit。
 
 ### 阶段 1:建立性能测试基础设施
 
-(待上面 2 条决策落定后展开)
-
-- [ ] 按决策搭 `perf/` 目录骨架:样本目录、runner、基线 JSON 写入路径
-- [ ] 定义初版指标集合:user.js 注入到首次 `scanTextNodes` 返回的耗时、首批 mutation 处理总耗时、`addRuby` 调用次数、Bing 请求数 + `GM_getValue` 缓存命中率、堆内存峰值
-- [ ] 选定 1–2 个具体在线小说页作为样本(挑文字密集、DOM 结构典型的,避免太多动态加载导致 mutation 风暴干扰首次扫描指标)
-- [ ] 跑基线,确认同一样本多次跑数据波动在可接受阈值内,基线落到 `perf/baseline.json`(或等价位置)
+- [ ] 调研并落定 Chrome 启动方式:临时 `--user-data-dir` + `--remote-debugging-port` + 一组关闭首启 / 默认浏览器 / 自动化 banner 的标志,封装成可重复调用的启动脚本(脚本放 `perf/` 下)
+- [ ] 写最小 CDP 客户端(直接 ws + JSON-RPC,不引 puppeteer / playwright 重型依赖):至少能 `Page.navigate` + 等 `Page.loadEventFired` / `networkIdle` 等"渲染稳定"信号 + `Runtime.evaluate` 注入 user.js + 读 `performance.now()` + `Performance.getMetrics` 拿堆内存
+- [ ] 选定 1–2 个具体在线小说页(挑文字密集、首屏静态文字多、避免太多动态加载干扰首次扫描指标),把当次 HTML 快照下载到 `perf/samples/`;源 URL + 抓取时间戳记到 `perf/samples.index.json`(入 git,作为"基线对应哪份样本"的索引;真正的 HTML 不入 git)
+- [ ] 定义指标集合(初版):harness 注入 user.js 起到首次 `scanTextNodes` 返回的耗时、首批 mutation 处理耗时、`addRuby` 调用次数、Bing 请求次数 + `GM_getValue` 缓存命中率、JS 堆内存峰值
+- [ ] 决定如何处理 Bing 请求(真请求 + 预热缓存 / CDP `Fetch.fulfillRequest` mock 一个本地响应),让指标可复现 — 看哪种方案在波动测试中更稳
+- [ ] 跑基线 N 次取统计(中位数 + IQR),确认波动可接受,基线落到 `perf/baseline.json`
 
 ### 阶段 2:已知热点的覆盖测试
 
