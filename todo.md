@@ -14,7 +14,6 @@
 
 ### 阶段 1:建立性能测试基础设施
 
-- [ ] 定义指标集合(初版):harness 注入 user.js 起到首次 `scanTextNodes` 返回的耗时、首批 mutation 处理耗时、`addRuby` 调用次数、Bing 请求次数 + `GM_getValue` 缓存命中率、JS 堆内存峰值
 - [ ] 决定如何处理 Bing 请求(真请求 + 预热缓存 / CDP `Fetch.fulfillRequest` mock 一个本地响应),让指标可复现 — 看哪种方案在波动测试中更稳
 - [ ] 跑基线 N 次取统计(中位数 + IQR),确认波动可接受,基线落到 `perf/baseline.json`
 

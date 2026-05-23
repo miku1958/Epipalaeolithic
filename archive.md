@@ -10,6 +10,18 @@
 
 `perf/cdpClient.js` 直接基于 Node 内置 `WebSocket` 实现 JSON-RPC,不引 puppeteer / playwright。顶层 `connect(wsEndpoint)` 提供 `send` / `on` / `close`,`newPage()` 通过 `Target.createTarget` + `Target.attachToTarget({flatten:true})` 拿 sessionId,封装 `navigate`(内置 `Page.loadEventFired` 等待 + `errorText` 判失败)、`waitForNetworkIdle`(连续 `idleMs` 内无 `Network.requestWillBeSent` 即视作 idle)、`evaluate`(自动把页面侧异常翻译成 Node throw,带原始 description)、`getMetrics`(扁平化 `Performance.getMetrics` 输出)、`close`。client 断开时所有未完成 waiter 被 reject,避免悬挂 Promise。`perf/test-cdp.js` 端到端验证:data: URL navigate 27ms 触发 loadEventFired、`evaluate` 双向传值 + 异常翻译、`Performance.getMetrics` 返回 JSHeapUsed/Total/Nodes/Documents 真实数据,关闭链路干净。
 
+### P0 阶段 1:指标定义 + 采集器骨架
+
+`perf/gmShim.js` 在 user.js 注入前先注入页面:提供 `GM_xmlhttpRequest` / `GM_getValue` / `GM_setValue` / `GM_addStyle` 的最小可用实现,统计 xhr / getHit / getMiss / set 次数到 `window.__perfStats`;同时把 `window.MutationObserver` 替成 no-op,让 user.js 的 `main()` 装的 observer 不工作,我们手动调 `scanTextNodes` + `translateTextNodes` 测纯工作量、剥离 debounce 50ms 噪声。`perf/harness.js` 导出 `measureSample(slug)`:`file://` 加载样本 → 注入 gmShim → 通过 `<script>` 标签注入 user.js 全文(因 user.js 顶层有 function declaration,`Runtime.evaluate` 当 expression 跑不会把它挂到 global)→ 手动驱动两个函数测时 → 100ms drain mock xhr 回调 → 采集指标。`perf/test-harness.js` 端到端跑两份样本。
+
+指标集合(初版):`scanMs` / `translateSyncMs` / `firstBatchMs` / `addRubyCount`(`ruby > rt.ipa-additional-rt` 计数,等价于 addRuby 成功次数)/ `rubyFilledCount`(rt 含 `data-rt` 即异步回调已写入 IPA)/ `gmXhrCalls` / `gmGetHits` / `gmGetMisses` / `gmSetCount` / `cacheHitRate` / `jsHeap{Before,After}Bytes` / `nodes{Before,After}`。
+
+首次跑通数据(cold start,placeholder xhr):
+- Pride and Prejudice — scanMs=12243.6, addRubyCount=122943, gmXhrCalls=6722, nodes 12953→627660(+614707), JSHeap 0.69→8.92 MiB
+- War and Peace — scanMs=**279621.4(4.7 分钟)**, addRubyCount=553569, gmXhrCalls=17594, nodes 43765→2811599(+2767834), JSHeap 0.69→36.81 MiB
+
+`translateSyncMs` 都 <20ms,但只测了同步部分(GM_xhr 入队);xhr 回调里 `updateRuby` 的真实工作没单独计时,如果未来发现要量,补一个 `translateAsyncDrainMs` 即可。`cacheHitRate` 在 cold start 测里恒为 0,真实命中要靠"热"模式(预热缓存或同进程跑多次)体现,留给后续基线统计设计。
+
 ### P0 阶段 1:样本抓取脚本 + 首批样本
 
 `perf/captureSample.js` 用 `launchChrome` + `cdpClient`:navigate(timeoutMs=60s)+ `waitForNetworkIdle(idleMs=500, timeoutMs=15s)` + `evaluate("document.querySelectorAll('script').forEach(s=>s.remove()); ... outerHTML")` 抓渲染后的 DOM,预先剥掉所有 `<script>` 让本地副本加载时不再执行原页面 JS 污染 user.js 的测量。写盘到 `perf/samples/<slug>.html`(.gitignore),`perf/samples.index.json`(入 git)记录 url / capturedAt / sizeBytes / sha256。
